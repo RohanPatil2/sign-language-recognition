@@ -22,30 +22,43 @@
 
 ---
 
-## 🧠 **System Architecture Deep Dive**
+Here's a **well-structured and professional** **System Architecture & Design** section for your README, integrating **advanced ML techniques, optimized inference, and MLOps best practices**.
 
-### **Multi-Stage Processing Pipeline**
+---
+
+# 🏗 **System Architecture & Design**
+
+## 📌 **Multi-Stage Processing Pipeline**
+The system follows a **modular deep learning pipeline**, combining **pose estimation, feature extraction, sequence modeling, and ensemble classification**.
+
+```mermaid
 graph TD
-    A[Raw Video Input] --> B(Pose Estimation)
-    B --> C{Feature Extraction}
-    C --> D[Transformer Temporal Encoder]
-    C --> E[BiLSTM Sequence Model]
-    D --> F[Feature Fusion Layer]
+    A[📹 Raw Video Input] --> B{🖐 Pose Estimation}
+    B --> C[🧩 Feature Extraction]
+    C --> D[🔀 Transformer Temporal Encoder]
+    C --> E[📈 BiLSTM Sequence Model]
+    D --> F[🎯 Feature Fusion Layer]
     E --> F
-    F --> G[XGBoost Meta-Learner]
-    G --> H[Gesture Classification]
+    F --> G[🎯 XGBoost Meta-Learner]
+    G --> H[✅ Gesture Classification]
 ```
 
-### **1. Pose Estimation Engine**
-**Multi-Modal Landmark Detection:**
-- **Mediapipe Hands** (21 landmarks per hand)
-  - Palm detection CNN (256x256 input)
-  - Hand landmark CNN (3D coordinates)
-- **Blazepose** (33 body landmarks)
-  - Heatmap-based detector (224x224 input)
-  - IK-FABRIK kinematic chain solver
+---
 
-**Keypoint Postprocessing:**
+## 🧠 **1. Pose Estimation Engine**
+Our system extracts **key skeletal points** from **hand and body movements** using **Mediapipe Hands & Blazepose**.
+
+### 🔹 **Multi-Modal Landmark Detection**
+- **Mediapipe Hands**:  
+  ✅ **Palm Detection CNN** *(256×256 input)*  
+  ✅ **Hand Landmark CNN** *(21 keypoints, 3D coordinates)*  
+- **Blazepose**:  
+  ✅ **Heatmap-based Detector** *(224×224 input)*  
+  ✅ **Inverse Kinematics Solver (IK-FABRIK)**  
+
+### 🔹 **Keypoint Preprocessing**
+Keypoints undergo **centroid alignment**, **scale normalization**, and **temporal smoothing**:
+
 ```python
 def normalize_landmarks(landmarks):
     # Centroid alignment
@@ -56,20 +69,27 @@ def normalize_landmarks(landmarks):
     max_dist = np.max(np.linalg.norm(landmarks[:, :2], axis=1))
     landmarks[:, :2] /= (max_dist + 1e-8)
     
-    # Temporal smoothing (Savitzky-Golay filter)
+    # Temporal smoothing using Savitzky-Golay filter
     return savgol_filter(landmarks, window_length=11, polyorder=3)
 ```
 
-### **2. Spatiotemporal Feature Engineering**
-**Feature Type** | **Description** | **Dimension**
----|---|---
-Absolute Coordinates | Raw 3D positions | 126 (42 landmarks × 3)
-Relative Angles | Joint angle cosines | 78 (26 angle pairs)
-Motion Dynamics | Velocity/Acceleration | 252 (126 × 2)
-Hand Shape | Circularity, rectangularity | 2 per hand
-Trajectory | DTW-aligned path | 30 (10 key points × 3)
+---
 
-**Feature Fusion:**
+## 🔬 **2. Spatiotemporal Feature Engineering**
+Each frame is transformed into a **high-dimensional feature vector**.
+
+### 🔹 **Feature Representation**
+| Feature Type | Description | Dimension |
+|-------------|-------------|-----------|
+| **Absolute Coordinates** | Raw 3D positions | 126 (42 landmarks × 3) |
+| **Relative Angles** | Joint angle cosines | 78 (26 angle pairs) |
+| **Motion Dynamics** | Velocity & Acceleration | 252 (126 × 2) |
+| **Hand Shape** | Circularity, rectangularity | 2 per hand |
+| **Trajectory** | DTW-aligned path | 30 (10 key points × 3) |
+
+### 🔹 **Feature Fusion**
+We use **self-attention & BiLSTM** for feature integration:
+
 ```python
 class FeatureFuser(nn.Module):
     def __init__(self):
@@ -83,19 +103,27 @@ class FeatureFuser(nn.Module):
         return torch.cat([temporal_features, seq_features], dim=-1)
 ```
 
-### **3. Hybrid Model Architecture**
-**Transformer Encoder Specifications:**
-- 6-layer encoder with 8 attention heads
-- Positional encoding: Learned sinusoidal embeddings
-- Input: 256-dim feature vectors (sequence length=64 frames)
-- Output: 512-dim context-aware embeddings
+---
 
-**BiLSTM Configuration:**
-- 2 bidirectional layers (256 units each)
-- Zoneout regularization (p=0.1)
-- Attention pooling with learned query vector
+## 🏗 **3. Hybrid Model Architecture**
+Our model combines:
+✅ **Transformer Encoder** *(context-aware feature extraction)*  
+✅ **BiLSTM** *(temporal sequence modeling)*  
+✅ **XGBoost Meta-Learner** *(final classification)*  
 
-**XGBoost Meta-Classifier:**
+### 🔹 **Transformer Encoder**
+- **6-layer Transformer Encoder**
+- **8 attention heads**
+- **Learned sinusoidal positional encoding**
+- **Input:** 256-dimensional feature vectors *(sequence length = 64 frames)*
+- **Output:** 512-dimensional embeddings
+
+### 🔹 **BiLSTM Configuration**
+- **2-layer bidirectional LSTM (256 units each)**
+- **Zoneout Regularization (p=0.1)**
+- **Attention Pooling with Query Vector**
+
+### 🔹 **XGBoost Classifier**
 ```python
 xgb_params = {
     'objective': 'multi:softprob',
@@ -110,10 +138,14 @@ xgb_params = {
 }
 ```
 
-### **4. Training Infrastructure**
-**Hyperparameter Optimization:**
-- Bayesian search with Optuna (200 trials)
-- Search space:
+---
+
+## ⚡ **4. Training Infrastructure**
+We employ **distributed training optimizations** for efficient model training.
+
+### 🔹 **Hyperparameter Optimization**
+- **Bayesian Search with Optuna** *(200 trials)*
+- **Search Space:**
   ```python
   {
       'transformer_layers': [4, 6, 8],
@@ -123,28 +155,34 @@ xgb_params = {
   }
   ```
 
-**Training Accelerations:**
-- Mixed Precision (AMP) with PyTorch
-- Gradient Accumulation (steps=4)
-- Distributed Data Parallel (DDP) across 4 GPUs
-- Automatic Mixed Precision (AMP) enabled
+### 🔹 **Training Accelerations**
+✅ **Mixed Precision (AMP) with PyTorch**  
+✅ **Gradient Accumulation (steps=4)**  
+✅ **Distributed Data Parallel (DDP) across 4 GPUs**  
 
-### **5. Production Inference Pipeline**
-**Optimization Techniques:**
-- ONNX Runtime with graph optimizations
-- TensorRT FP16 quantization
-- Kernel fusion for transformer layers
-- Cache-aware memory allocation
+---
 
-**Latency Benchmarks:**
+## 🚀 **5. Production Inference Pipeline**
+**Optimized for real-time applications using ONNX & TensorRT.**
+
+### 🔹 **Latency Benchmarks**
 | Hardware | Batch Size | Latency (ms) | Throughput (FPS) |
 |----------|------------|--------------|-------------------|
-| RTX 3090 | 1          | 18.2 ± 1.4   | 54.9             |
-| A100     | 32         | 112.4 ± 5.2  | 284.7            |
-| CPU      | 1          | 142.8 ± 8.1  | 7.0              |
+| **RTX 3090** | 1 | 18.2 ± 1.4 | 54.9 |
+| **A100** | 32 | 112.4 ± 5.2 | 284.7 |
+| **CPU** | 1 | 142.8 ± 8.1 | 7.0 |
 
-### **6. Explainability Framework**
-**Integrated Grad-CAM:**
+### 🔹 **Optimization Techniques**
+✅ **ONNX Graph Optimizations**  
+✅ **TensorRT FP16 Quantization**  
+✅ **Kernel Fusion for Transformer Layers**  
+✅ **Cache-aware Memory Allocation**  
+
+---
+
+## 🔍 **6. Explainability & Model Interpretability**
+We integrate **Integrated Grad-CAM** to **visualize model decisions**.
+
 ```python
 class InterpretableTransformer(nn.Module):
     def __init__(self, base_model):
@@ -161,37 +199,33 @@ class InterpretableTransformer(nn.Module):
         return self.transformer.classifier(x)
 ```
 
-**Visualization Pipeline:**
-1. Compute gradient-weighted class activation
-2. Temporal aggregation via max-pooling
-3. Spatial projection to original video frame
-4. Heatmap overlay with alpha blending
+### 🔹 **Visualization Pipeline**
+✅ Compute **gradient-weighted class activations**  
+✅ Perform **temporal aggregation** via **max-pooling**  
+✅ Project **spatial heatmaps onto original video frames**  
+✅ **Overlay** heatmap with **alpha blending**
 
 ---
 
-## 🛠 **Development Ecosystem**
+## 🛠 **7. MLOps & Development Stack**
+| **Component** | **Technology** |
+|--------------|---------------|
+| **Version Control** | Git + DVC + Git LFS |
+| **Experiment Tracking** | MLFlow + Neptune |
+| **Model Registry** | AWS SageMaker |
+| **Monitoring** | Prometheus + Grafana |
+| **CI/CD** | GitHub Actions + ArgoCD |
+| **Logging** | ELK Stack (Elasticsearch, Logstash, Kibana) |
 
-### **MLOps Stack**
-| Component | Technology Stack |
-|-----------|------------------|
-| Versioning | DVC + Git LFS |
-| Experiment Tracking | MLFlow + Neptune |
-| Model Registry | AWS SageMaker |
-| Monitoring | Prometheus + Grafana |
-| CI/CD | GitHub Actions + Argo CD |
+### 🔹 **Testing Framework**
+✅ **Unit Tests**: Pytest *(85% coverage)*  
+✅ **Integration Tests**: Docker-compose + Locust  
+✅ **Model Tests**: Hypothesis + Great Expectations  
+✅ **Performance**: PyTorch Benchmark Utils  
 
-### **Testing Framework**
-- **Unit Tests**: Pytest (85% coverage)
-- **Integration Tests**: Docker-compose + Locust
-- **Model Tests**: Hypothesis + Great Expectations
-- **Performance**: PyTorch Benchmark Utils
 
-### **Documentation**
-- API Docs: Swagger/OpenAPI 3.0
-- Architecture Decision Records (ADRs)
-- Model Cards for each architecture
-- Threat Model Analysis
 
+---
 
 ### **Core Components**
 1. **Pose Estimation**: Mediapipe Hands (21 landmarks) + Blazepose (33 body landmarks)
