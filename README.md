@@ -3,7 +3,6 @@ This repo contains the code for sign-language-recognition as part of our final y
 
 ## Dataset Link For INCLUDE 50:[Sign Language Dataset](https://zenodo.org/records/4010759)
 
-## Video [Explanation Video](https://drive.google.com/file/d/1QfFWgh3hXmhawjZ0twCvGleM8yk79JOW/view?usp=sharing)
 
 # Dependencies
 
