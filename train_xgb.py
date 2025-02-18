@@ -1,8 +1,11 @@
 import os
-
-from sklearn.metrics import accuracy_score
-import pandas as pd
+import glob
+import logging
+import warnings
 import numpy as np
+import pandas as pd
+from tqdm.auto import tqdm
+from sklearn.metrics import accuracy_score
 
 from models import Xgboost
 from configs import XgbConfig
@@ -15,122 +18,114 @@ from augment import (
     upsample,
     downsample,
 )
-from tqdm.auto import tqdm
-import glob
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    handlers=[logging.StreamHandler()]
+)
 
 def flatten(arr, max_seq_len=200):
+    """Pads and flattens an array to a fixed sequence length."""
     arr = np.array(arr)
     arr = np.pad(arr, ((0, max_seq_len - arr.shape[0]), (0, 0)), "constant")
-    arr = arr.flatten()
-    return arr
+    return arr.flatten()
 
 
 def combine_xy(x, y):
+    """Combines X and Y coordinates into a single feature array."""
     x, y = np.array(x), np.array(y)
-    _, length = x.shape
-    x = x.reshape((-1, length, 1))
-    y = y.reshape((-1, length, 1))
-    return np.concatenate((x, y), -1).astype(np.float32)
+    x = x.reshape((-1, x.shape[1], 1))
+    y = y.reshape((-1, y.shape[1], 1))
+    return np.concatenate((x, y), axis=-1).astype(np.float32)
 
 
 def split_xy(data):
-    value_x, value_y = [], []
-    for row in data:
-        row = np.asarray(row)
-        if row.shape == ():
-            continue
-        value_x.append(row[:, 0])
-        value_y.append(row[:, 1])
-    value_x, value_y = np.asarray(value_x), np.asarray(value_y)
-    return value_x, value_y
+    """Splits a combined array back into X and Y coordinates."""
+    x_values, y_values = zip(*[(row[:, 0], row[:, 1]) for row in data if row.shape != ()])
+    return np.array(x_values), np.array(y_values)
 
 
 def augment_sample(df, augs):
+    """Applies multiple augmentations to the data."""
     df = df.copy()
     pose = combine_xy(df.pose_x, df.pose_y)
-    h1 = combine_xy(df.hand1_x, df.hand1_y)
-    h2 = combine_xy(df.hand2_x, df.hand2_y)
-    input_df = pd.DataFrame.from_dict(
-        {
-            "uid": df.uid,
-            "pose": pose.tolist(),
-            "hand1": h1.tolist(),
-            "hand2": h2.tolist(),
-            "label": df.label,
-        }
-    )
+    hand1 = combine_xy(df.hand1_x, df.hand1_y)
+    hand2 = combine_xy(df.hand2_x, df.hand2_y)
+
+    input_df = pd.DataFrame({
+        "uid": df.uid,
+        "pose": pose.tolist(),
+        "hand1": hand1.tolist(),
+        "hand2": hand2.tolist(),
+        "label": df.label
+    })
+
     augmented_samples = []
-    for augmentation in augs:
-        df_augmented = augmentation(input_df)
-        pose_x, pose_y = split_xy(df_augmented.pose)
-        hand1_x, hand1_y = split_xy(df_augmented.hand1)
-        hand2_x, hand2_y = split_xy(df_augmented.hand2)
-        save_df = pd.Series(
-            {
-                "uid": df.uid + "_" + augmentation.__name__,
-                "label": df.label,
-                "pose_x": pose_x.tolist(),
-                "pose_y": pose_y.tolist(),
-                "hand1_x": hand1_x.tolist(),
-                "hand1_y": hand1_y.tolist(),
-                "hand2_x": hand2_x.tolist(),
-                "hand2_y": hand2_y.tolist(),
-                "n_frames": df.n_frames,
-            }
-        )
-        augmented_samples.append(save_df)
+    for aug in augs:
+        df_aug = aug(input_df)
+        pose_x, pose_y = split_xy(df_aug.pose)
+        hand1_x, hand1_y = split_xy(df_aug.hand1)
+        hand2_x, hand2_y = split_xy(df_aug.hand2)
+
+        augmented_samples.append(pd.Series({
+            "uid": f"{df.uid}_{aug.__name__}",
+            "label": df.label,
+            "pose_x": pose_x.tolist(),
+            "pose_y": pose_y.tolist(),
+            "hand1_x": hand1_x.tolist(),
+            "hand1_y": hand1_y.tolist(),
+            "hand2_x": hand2_x.tolist(),
+            "hand2_y": hand2_y.tolist(),
+            "n_frames": df.n_frames
+        }))
 
     return pd.concat(augmented_samples, axis=0)
 
 
 def preprocess(df, use_augs, label_map, mode):
+    """Processes raw JSON data into feature matrices."""
     feature_cols = ["pose_x", "pose_y", "hand1_x", "hand1_y", "hand2_x", "hand2_y"]
     x, y = [], []
-    i = 0
-    no_of_videos = df.shape[0]/9
-    pbar = tqdm(total=no_of_videos, desc=f"Processing {mode} file....")
-    while i < no_of_videos:
+
+    no_of_videos = df.shape[0] // 9
+    pbar = tqdm(total=no_of_videos, desc=f"Processing {mode} dataset")
+
+    for i in range(no_of_videos):
         if use_augs and mode == "train":
-            augs = [
-                plus7rotation,
-                minus7rotation,
-                gaussSample,
-                cutout,
-                upsample,
-                downsample,
-            ]
+            augs = [plus7rotation, minus7rotation, gaussSample, cutout, upsample, downsample]
             augmented_rows = augment_sample(df.iloc[i], augs)
-            df = pd.concat([df, augmented_rows], axis=0)
+            df = pd.concat([df, augmented_rows], ignore_index=True)
+
         row = df.loc[i, feature_cols]
         flatten_features = np.hstack(list(map(flatten, row.values)))
         x.append(flatten_features)
         y.append(label_map[df.loc[i, "label"]])
-        i += 1
         pbar.update(1)
-    x = np.stack(x)
-    y = np.array(y)
-    return x, y
+
+    pbar.close()
+    return np.stack(x), np.array(y)
 
 
 def load_dataframe(files):
-    series = []
-    for file_path in files:
-      series.append(pd.read_json(file_path, typ="series"))
-    return pd.concat(series, axis=0,keys=range(675))
+    """Loads and concatenates multiple JSON files into a Pandas DataFrame."""
+    if not files:
+        raise FileNotFoundError("No data files found!")
+
+    series_list = [pd.read_json(file, typ="series") for file in files]
+    return pd.concat(series_list, axis=0, keys=range(len(series_list)))
 
 
 def fit(args):
-    train_files = sorted(
-        glob.glob(
-            os.path.join(args.data_dir, f"{args.dataset}_train_keypoints", "*.json")
-        )
-    )
-    val_files = sorted(
-        glob.glob(
-            os.path.join(args.data_dir, f"{args.dataset}_val_keypoints", "*.json")
-        )
-    )
+    """Training pipeline for the model."""
+    train_files = sorted(glob.glob(os.path.join(args.data_dir, f"{args.dataset}_train_keypoints", "*.json")))
+    val_files = sorted(glob.glob(os.path.join(args.data_dir, f"{args.dataset}_val_keypoints", "*.json")))
 
+    if not train_files or not val_files:
+        raise FileNotFoundError("Training/Validation data files are missing!")
+
+    logging.info("Loading training and validation data...")
     train_df = load_dataframe(train_files)
     val_df = load_dataframe(val_files)
 
@@ -140,20 +135,24 @@ def fit(args):
 
     config = XgbConfig()
     model = Xgboost(config=config)
+    
+    logging.info("### Training XGBoost Model ###")
     model.fit(x_train, y_train, x_val, y_val)
 
     exp_name = get_experiment_name(args)
-    save_path = os.path.join(args.save_path, exp_name+ ".pickle.dat")
+    save_path = os.path.join(args.save_path, f"{exp_name}.pickle.dat")
     model.save(save_path)
+    logging.info(f"Model saved at {save_path}")
 
 
 def evaluate(args):
-    test_files = sorted(
-        glob.glob(
-            os.path.join(args.data_dir, f"{args.dataset}_test_keypoints", "*.json")
-        )
-    )
+    """Evaluation pipeline for the trained model."""
+    test_files = sorted(glob.glob(os.path.join(args.data_dir, f"{args.dataset}_test_keypoints", "*.json")))
 
+    if not test_files:
+        raise FileNotFoundError("Test data files are missing!")
+
+    logging.info("Loading test data...")
     test_df = load_dataframe(test_files)
 
     label_map = load_label_map(args.dataset)
@@ -162,9 +161,17 @@ def evaluate(args):
     exp_name = get_experiment_name(args)
     config = XgbConfig()
     model = Xgboost(config=config)
-    load_path = os.path.join(args.save_path, exp_name+ ".pickle.dat")
-    model.load(load_path)
-    print("### Model loaded ###")
 
-    test_preds = model(x_test)
-    print("Test accuracy:", accuracy_score(y_test, test_preds))
+    load_path = os.path.join(args.save_path, f"{exp_name}.pickle.dat")
+    if not os.path.exists(load_path):
+        raise FileNotFoundError(f"Model file not found at {load_path}")
+
+    logging.info("### Loading Trained Model ###")
+    model.load(load_path)
+
+    logging.info("### Running Model Evaluation ###")
+    test_preds = model.predict(x_test)
+    acc = accuracy_score(y_test, test_preds)
+
+    logging.info(f"Test Accuracy: {acc:.4f}")
+    return acc
