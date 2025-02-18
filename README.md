@@ -391,20 +391,11 @@ We welcome contributions! Please follow these steps:
 5. Open a Pull Request
 
 See our [Contribution Guidelines](CONTRIBUTING.md) for details.
-
 ---
 
-## 📜 **Citation**
-If you use this work in your research, please cite:
-```bibtex
-@misc{signlang2023,
-  title={Multi-Modal Sign Language Recognition via Spatiotemporal Transformers},
-  author={Patil, Rohan and Khandale, Shreyas},
-  year={2023},
-  publisher={GitHub},
-  howpublished={\url{https://github.com/yourusername/sign-language-recognition}},
-}
-```
+## Contributors
+- **Shreyas Khandale** https://github.com/sherurox
+- **Rohan Upendra Patil**  https://github.com/rohanpatil2
 
 ---
 
