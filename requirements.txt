@@ -1,8 +1,24 @@
-torch
-transformers
-timm
-mediapipe
-tqdm
-scikit-learn
-xgboost ## installs CPU version, check docs for GPU compatible version
-pandas
+# Core Deep Learning Libraries
+torch==2.1.0+cu121   # Change to your CUDA version (cu118, cu121, or cpu)
+torchvision==0.16.0+cu121
+torchaudio==2.1.0+cu121
+
+# Transformer Models (NLP & Vision)
+transformers==4.37.2
+
+# High-performance vision models
+timm==0.9.5
+
+# Real-time Computer Vision
+mediapipe==0.10.9
+
+# Progress Bar for loops
+tqdm==4.66.2
+
+# Machine Learning
+scikit-learn==1.4.0
+xgboost==2.0.3  # Use `pip install xgboost --extra-index-url https://pypi.nvidia.com` for GPU support
+
+# Data Processing
+pandas==2.1.4
+numpy==1.26.3  # Ensure compatibility with all packages
