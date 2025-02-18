@@ -1,0 +1,22 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+pandas = "*"
+mediapipe = "*"
+tqdm = "*"
+joblib = "*"
+opencv-python = "*"
+scikit-learn = "*"
+torch = "*"
+transformers = "*"
+xgboost = "*"
+timm = "*"
+
+[dev-packages]
+ipykernel = "*"
+
+[requires]
+python_version = "3.7"

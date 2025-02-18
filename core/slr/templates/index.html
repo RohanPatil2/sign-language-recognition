@@ -1,0 +1,47 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Django - Sign Video Upload and predict </title>
+		<link rel="stylesheet" href="static/style.css">
+    </head>
+    <body>
+        <h1 style="text-align:center">Know The Sign</h1> 
+		<h3 id="sub-head">Sign Language Recognition</h3>
+
+		<div class="container1">
+			<fieldset class="container2" name="Video File Upload and Display">
+				{% if msg %} {% autoescape off %} {{ msg }} {% endautoescape %} {% endif %}
+				<form method="post" action="/" enctype="multipart/form-data">
+					{% csrf_token %}
+					<dl>
+						<p>
+							<label class="label">Browse and select a video file</label>&nbsp;&nbsp;
+							<input class="file-choose" type="file" name="file" autocomplete="off" required>
+						</p>
+					</dl>
+					<p>
+						<input type="submit" value="Upload Display and Predict">
+					</p>
+				</form>
+			</fieldset>
+			
+			{% if filename %}
+				<div style="margin: 10px auto;">
+					<video style="margin-left:32rem;margin-top:10rem" width="500" height="240" autoplay="autoplay" controls="controls" preload="preload">
+						<source src="{{ filename }}" type="video/mp4"></source>
+					</video>
+				</div>
+			{% endif %}
+
+			{% if data %}
+
+			<h2 style="color:white;text-align:center;">
+				Predicted sign is <h1 style="padding-top:3px">{{data.predicted_label}}</h1>
+			</h2>
+
+			{% endif %}
+		</div>	
+    </body>
+</html>
