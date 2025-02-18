@@ -32,3 +32,15 @@ Install the dependencies through the following command
 ```bash
 >> python evaluate.py --data_dir <dir with videos>
 ```
+
+
+---
+
+## 👤 Author
+**Rohan Patil** <br> 
+GitHub: [@RohanPatil2](https://github.com/RohanPatil2)<br>
+**Shreyas Khandale**<br>
+Github: [@sherurox](https://github.com/sherurox).<br>
+
+
+---
